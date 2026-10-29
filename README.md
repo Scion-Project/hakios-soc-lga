@@ -118,6 +118,26 @@ GIC, cores and PSCI path at QEMU's addresses. Seen (2026-10-29, QEMU 11.1.2):
 What QEMU cannot check: QEMU numbers its cores in Aff0 whatever `-smp` says, so the Pixel's Aff1 numbering is not
 exercised here (xnuloader's `core_shift = 8`, the POCO's, is); nor anything of the phone itself, ABL above all.
 
+## Bring-up checklist: the SoC's part
+
+What the first runs on a phone have to show about the Tensor G5 itself, in order (the phone's own steps, and how to run
+them, are [hakios-frankel's](https://github.com/Scion-Project/hakios-frankel#bring-up-in-order)). Each is a line the shim,
+the loader or the kernel prints, on the UART and on the screen.
+
+| # | What | Seen as | If not |
+|---|---|---|---|
+| 1 | ABL runs the image (`fastboot boot`, AVB-footed) | the screen changes; `shim: ... entered at EL2` | stays in fastboot: the footer, then an LZ4 Image |
+| 2 | ABL hands over at EL2 | `entered at EL2` | `entered at EL1 with PSCI by SMC`: `platform_frankel.psci_hvc = 0`, one core only |
+| 3 | the RAM and reservations as the tree says | `shim: RAM 0x80000000 + ...`, `0x880000000 + ...`; the free blocks | `/memory` empty: ABL's tree is not what this expects |
+| 4 | the watchdogs stopped | `watchdog 0 ... id 0x574454 control ... -> ...` (bit 0 clear) | the phone restarts after 24 or 30 s: pet them instead |
+| 5 | the framebuffer | `framebuffer 1080 x 2424 at ...`; the bands and the console on the screen | the DPU's layers printed (UART): `scion.fb=`; an SMMU on (CR0 bit 0): its tables, next steps |
+| 6 | a write reaches the panel | the bands show at all | command mode: start a frame (`OUTPUT0_START`), next steps |
+| 7 | the loader finds the phone | `platform frankel, GICv3`, `CurrentEL=1` | `platform qemu-virt`: the tree's compatible is not `google,lga-frankel` |
+| 8 | the timer | `CNTFRQ=38400000` (inferred; whatever it is, the loader uses it) | `CNTFRQ=0`: `platform_frankel.timer_hz` |
+| 9 | the GIC | `gic: v3, ... cpu 0's redistributor ...` | a panic `no redistributor for MPIDR`: the frames' layout |
+| 10 | PSCI through the shim | `bootcpu=7 cpus=8`: `7 of 7 processors are running` | `shim: EL2 fault: ESR ...` in the log: what EL1 did that EL2 traps |
+| 11 | the RAM log survives a restart | ramoops' pmsg zone (0x95400000) read in Android | ABL clears it: another region, `platform_frankel.ram_log` |
+
 ## PixOS: what the Pixel 6a port did
 
 [PixOS-Project](https://github.com/PixOS-Project) (`pixelios-kernel`, MIT; read at `04457e5ddae2`) boots XNU on the Pixel 6a
