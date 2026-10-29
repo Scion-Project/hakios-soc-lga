@@ -1,0 +1,7 @@
+# build outputs (make -C shim; shim/qemu-test.sh)
+shim/*.o
+shim/shim.elf
+shim/shim.bin
+shim/fdt-test
+shim/tests/*.dtb
+shim/out-qemu/
